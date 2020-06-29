@@ -1,21 +1,31 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http/httptest"
+	"net/http"
 	"testing"
+	"strings"
+
 )
 
 func TestWelcome(t *testing.T) {
+	
+	data := &serviceData{}
+	req := httptest.NewRequest("GET", "/welcome/?name=mara", nil)
 
-	req := httptest.NewRequest("GET", "localhost:8080/welcome?name=mara", nil)
 	w := httptest.NewRecorder()
-	welcomeHandler(w, req)
+	mux := data.muxSetup()
+	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	fmt.Println(resp.StatusCode)
-	fmt.Println(string(body))
+	if !strings.Contains(string(body), "mara") {
+		t.Error("Query parameters have not been parsed properly")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code 200 but got %d", resp.StatusCode)
+	}
 }
