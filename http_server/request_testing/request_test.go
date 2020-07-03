@@ -1,13 +1,13 @@
 package requesttesting
 
 import (
+	"regexp"
 	"context"
 	"log"
 	"net"
 	"net/http"
-	"regexp"
-	"strings"
 	"testing"
+	"strings"
 )
 
 type recorderHandler struct {
@@ -19,21 +19,21 @@ func (hr *recorderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hr.req = r
 	log.Print("Handler was called.")
 	hr.doneReq <- true
-} 
+}
 
 func makeRequest(req string) (reqReceived *http.Request, resp []byte) {
 
-	clientEndpoint, serverEndpoint := net.Pipe()
-	listener := newMockListener(serverEndpoint)
+	e1, e2 := net.Pipe()
+	listener := newMockListener(e2)
 	// defer listener.Close()
 	handler := &recorderHandler{req: nil, doneReq: make(chan bool)}
 	server := &http.Server{Handler: handler}
 	go server.Serve(listener)
 	defer server.Shutdown(context.Background())
-	clientEndpoint.Write([]byte(req))
+	e1.Write([]byte(req))
 	resp = make([]byte, 4096)
 	go func() {
-		clientEndpoint.Read(resp)
+		e1.Read(resp)
 		// TODO(MARA) replace with something bettere
 		r, _ := regexp.Compile("HTTP/[0-9].[0-9] [4-5][0-9][0-9]")
 		if r.MatchString(string(resp)) {
@@ -129,12 +129,12 @@ func TestQueryParametersInvalidUnicodes(t *testing.T) {
 		t.Errorf("Server response: expected it to contain %s, got %s", badReq, respString)
 	}
 
+
 }
 
 // Test behaviour of query parameter parser when passing malformed key or
 // values (by breaking URL encoding). If using Query(), it is supposed to
-// silently discard malformed values. In URLs, percent are used used for
-// percent-encoding special characters
+// silently discard malformed values.
 func TestQueryParametersBreakUrlEncoding(t *testing.T) {
 	brokenKeyReq := "GET /?vegetable%=tomato HTTP/1.1\r\n" + "Host: localhost:8080\r\n" + "\r\n"
 	req, _ := makeRequest(brokenKeyReq)
@@ -149,27 +149,4 @@ func TestQueryParametersBreakUrlEncoding(t *testing.T) {
 	}
 
 }
-
-// Test whether both + and %20 are interpreted as space. Having a space in the
-// actual request will not be escaped and will result in a 400
-func TestQueryParametersSpaceBehaviour(t *testing.T) {
-		_, resp := makeRequest("GET /?vegetable=potato pear&Vegetable=tomato HTTP/1.1\r\n" +
-		"Host: localhost:8080\r\n" + "\r\n")
-
-		badReq := "400 Bad Request"
-		if r := string(resp); !strings.Contains(r, badReq) {
-			t.Errorf("Expected %s got %s", badReq, r)
-		}
-
-		req1, _ := makeRequest("GET /?vegetable=potato+pear&Vegetable=tomato HTTP/1.1\r\n" +
-		"Host: localhost:8080\r\n" + "\r\n")
-		req2, _ := makeRequest("GET /?vegetable=potato%20pear&Vegetable=tomato HTTP/1.1\r\n" +
-		"Host: localhost:8080\r\n" + "\r\n")
-		s1 := req1.URL.Query()["vegetable"][0]
-		s2 := req2.URL.Query()["vegetable"][0]
-		if s1 != s2 {
-			t.Errorf("Expected identical parsing but got %s and %s", s1, s2)
-		}
-}
-
 
