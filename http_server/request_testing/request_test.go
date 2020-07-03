@@ -45,7 +45,7 @@ func makeRequest(req string) (reqReceived *http.Request, resp []byte) {
 	return
 }
 
-// Tests the setup
+// Tests the setup created to make requests and receive responses
 func TestMakeRequest(t *testing.T) {
 
 	req, _ := makeRequest("GET / HTTP/1.1\r\n" +

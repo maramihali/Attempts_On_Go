@@ -26,8 +26,7 @@ func newMockListener(endpoint net.Conn) *mockListener {
 	return listener
 }
 
-// Passes an endpoint to the server. Weirdly enough, when I make one request,
-// Accept() and hence Close() are being called twice, but the handler only once.
+// Passes an endpoint to the server to enable communication to client
 func (l *mockListener) Accept() (net.Conn, error) {
 	log.Print("Accept() called")
 	ch, ok := <-l.connChannel
